@@ -26,7 +26,8 @@ public class DbMigrationUtils {
             "    orderNumber int,\n" +
             "    payment_id int,\n" +
             "    CONSTRAINT PAY_ORD foreign key (payment_id)\n" +
-            "    REFERENCES payments (payment_id)\n" +
+            "    REFERENCES payments (payment_id),\n" +
+            "    UNIQUE(orderNumber, payment_id)" +
             ");";
 
     static public void addPaymentStatusColumn(Connection database) {
@@ -36,9 +37,9 @@ public class DbMigrationUtils {
         try {
             Statement stmt = database.createStatement();
             stmt.executeUpdate(ADD_PAYMENT_STATUS);
+            System.out.println("[SUCCESS] Add PAYMENT_STATUS column to orders");
         } catch (Exception ignored) {
-            ignored.printStackTrace();
-            System.out.println("Error adding PAYMENT_STATUS");
+            System.out.println("[FAILED] Add PAYMENT_STATUS column to orders");
         }
     }
 
@@ -49,8 +50,9 @@ public class DbMigrationUtils {
             stmt.executeUpdate(COPY_TO_TEMP_TABLE);
             stmt.executeUpdate(DROP_PAYMENTS_TABLE);
             stmt.executeUpdate(RENAME_PAYMENTS_TEMP_TO_PAYMENTS_TABLE);
+            System.out.println("[SUCCESS] Create PAYMENT_ID in Payments");
         } catch (Exception ignored) {
-            System.out.println("Error creating PAYMENT_ID in payments");
+            System.out.println("[FAILED] Create PAYMENT_ID in Payments");
         }
     }
 
@@ -58,8 +60,9 @@ public class DbMigrationUtils {
         try {
             Statement stmt = database.createStatement();
             stmt.executeUpdate(CREATE_ORDER_PAYMENTS);
+            System.out.println("[SUCCESS] Create ORDER_PAYMENTS table");
         } catch (Exception ignored) {
-            System.out.println("Error creating ORDER_PAYMENTS table");
+            System.out.println("[FAILED] Create ORDER_PAYMENTS table");
         }
     }
 

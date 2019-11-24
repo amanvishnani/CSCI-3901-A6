@@ -44,23 +44,23 @@ public class ValidationUtils {
     }
 
     private static boolean validateSameCustomer(Connection database, String cheque_number, ArrayList<Integer> orders) throws SQLException {
-        String inClause = getInClause(orders.size());
+        String inClause = QueryUtils.getInClause(orders.size());
         String SQL = String.format(SQL_CHECK_CUSTOMER_VALIDATION, inClause);
         PreparedStatement statement = database.prepareStatement(SQL);
-        setInClauseParams(statement, orders, 1);
+        QueryUtils.setInClauseParams(statement, orders, 1);
         statement.setString(orders.size()+1, cheque_number);
         ResultSet set = statement.executeQuery();
         if(set.next()) {
             System.out.println("Assertion Error: Order's Customer and Cheque's Customer dont match.");
             return false;
         }
-        return false;
+        return true;
     }
 
     public static boolean validateChequeNumber(Connection database, String cheque_number) throws SQLException {
         PreparedStatement statement = database.prepareStatement(SQL_FIND_PAYMENT_BY_CHEQUE_NO);
         statement.setString(1, cheque_number);
-        Integer count = getResult(statement, Integer.class);
+        Integer count = QueryUtils.getResult(statement, Integer.class);
         if(count == null) {
             return false;
         } else if(count == 0) {
@@ -75,7 +75,7 @@ public class ValidationUtils {
         return false;
     }
     public static boolean validateOrderNumbers(Connection database, ArrayList<Integer> orders) throws SQLException {
-        String inClause = getInClause(orders.size());
+        String inClause = QueryUtils.getInClause(orders.size());
         Set<Integer> set = new HashSet<>(orders);
         if(set.size()!=orders.size()) {
             orders.clear();
@@ -83,8 +83,8 @@ public class ValidationUtils {
         }
         String SQL = String.format(SQL_FIND_ORDER_BY_ORDER_NUMBER, inClause);
         PreparedStatement statement = database.prepareStatement(SQL);
-        setInClauseParams(statement, orders, 1);
-        Integer count = getResult(statement, Integer.class);
+        QueryUtils.setInClauseParams(statement, orders, 1);
+        Integer count = QueryUtils.getResult(statement, Integer.class);
         if(count == null) {
             return false;
         } else if (count == orders.size()) {
@@ -95,11 +95,11 @@ public class ValidationUtils {
         }
     }
     public static boolean validateOrderAmount(Connection database, float amount, ArrayList<Integer> orders) throws SQLException {
-        String inClause = getInClause(orders.size());
+        String inClause = QueryUtils.getInClause(orders.size());
         String SQL = String.format(SQL_SUM_ORDERS_AMOUNT, inClause);
         PreparedStatement statement = database.prepareStatement(SQL);
-        setInClauseParams(statement, orders, 1);
-        Double val = getResult(statement, Double.class);
+        QueryUtils.setInClauseParams(statement, orders, 1);
+        Double val = QueryUtils.getResult(statement, Double.class);
         if(val == null) {
             return false;
         } else if (val.floatValue() == amount) {
@@ -112,7 +112,7 @@ public class ValidationUtils {
     public static boolean validateChequeAmount(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) throws SQLException {
         PreparedStatement statement = database.prepareStatement(SQL_GET_CHEQUE_AMOUNT);
         statement.setString(1, cheque_number);
-        Double val = getResult(statement, Double.class);
+        Double val = QueryUtils.getResult(statement, Double.class);
         if(val == null) {
             return false;
         } else if (val.floatValue() == amount) {
@@ -120,33 +120,6 @@ public class ValidationUtils {
         }else {
             System.out.println("Amount and Cheque values don't match.");
             return false;
-        }
-    }
-
-    public static <T> T getResult(PreparedStatement statement, Class<T> tClass) throws SQLException {
-        ResultSet resultSet = statement.executeQuery();
-        if(resultSet.next()) {
-            return resultSet.getObject(1, tClass);
-        }
-        return null;
-    }
-
-    private static String getInClause(Integer length) {
-        StringBuilder builder = new StringBuilder("");
-        for (int i = 0; i < length; i++) {
-            builder.append("?");
-            if(i!=length-1) {
-                builder.append(", ");
-            }
-        }
-        return builder.toString();
-    }
-
-    private static <T> void setInClauseParams(PreparedStatement statement, List<T> list, Integer startAt) throws SQLException {
-        for (T obj :
-                list) {
-            statement.setObject(startAt, obj);
-            startAt = startAt + 1;
         }
     }
 }

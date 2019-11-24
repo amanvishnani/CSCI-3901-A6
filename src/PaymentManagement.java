@@ -1,4 +1,5 @@
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
@@ -11,19 +12,26 @@ public class PaymentManagement {
     }
 
     boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
+        if(orders.size()==0) {
+            return false;
+        }
         boolean valid = ValidationUtils.validateInput(database, amount, cheque_number, orders);
         if (!valid) {
             return false;
         }
         try {
-            QueryUtils.startTransaction(database);
-            // @TODO: Fill order_payment table.
-            // @TODO: Update payment values.
+            database.setAutoCommit(false);
+            OrderPayment.linkPayment(database, orders, cheque_number);
+            System.out.println("[SUCCESS] DB UPDATE. ORDER LINKED WITH PAYMENTS.");
+            OrderPayment.updateStatus(database, orders, "PAID");
+            System.out.println("[SUCCESS] DB UPDATE. ORDER PAYMENT_STATUS=\"PAID\".");
             QueryUtils.commitTransaction(database);
         } catch (SQLException e) {
+            System.out.println("[FAILED] DB UPDATE. ROLLBACK.");
             try {
                 QueryUtils.rollBackTransaction(database);
             } catch (SQLException ex) {
+                ex.printStackTrace();
                 return false;
             }
             return false;

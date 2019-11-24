@@ -1,33 +1,46 @@
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
+import java.util.List;
 
 public class QueryUtils {
     public static void startTransaction(Connection connection) throws SQLException {
-        String SQL_TURN_OFF_AUTO_COMMIT = "SET autocommit = OFF";
-        String SQL_START_TRANSACTION = "START TRANSACTION";
-        Statement statement = connection.createStatement();
-        statement.executeUpdate(SQL_TURN_OFF_AUTO_COMMIT);
-        statement.executeUpdate(SQL_START_TRANSACTION);
+
     }
 
     public static void rollBackTransaction(Connection connection) throws SQLException {
-        String SQL_ROLLBACK = "ROLLBACK";
-        Statement statement = connection.createStatement();
-        statement.executeUpdate(SQL_ROLLBACK);
-        turnOnAutoCommit(connection);
+        connection.rollback();
+        connection.setAutoCommit(true);
     }
 
-    public static void turnOnAutoCommit(Connection connection) throws SQLException {
-        String SQL_TURN_ON_AUTO_COMMIT = "SET autocommit = ON";
-        Statement statement = connection.createStatement();
-        statement.executeUpdate(SQL_TURN_ON_AUTO_COMMIT);
-    }
 
     public static void commitTransaction(Connection connection) throws SQLException {
-        String SQL_COMMIT = "COMMIT";
-        Statement statement = connection.createStatement();
-        statement.executeUpdate(SQL_COMMIT);
-        turnOnAutoCommit(connection);
+        connection.commit();
+        connection.setAutoCommit(true);
+    }
+
+    public static <T> T getResult(PreparedStatement statement, Class<T> tClass) throws SQLException {
+        ResultSet resultSet = statement.executeQuery();
+        if(resultSet.next()) {
+            return resultSet.getObject(1, tClass);
+        }
+        return null;
+    }
+
+    public static String getInClause(Integer length) {
+        StringBuilder builder = new StringBuilder("");
+        for (int i = 0; i < length; i++) {
+            builder.append("?");
+            if(i!=length-1) {
+                builder.append(", ");
+            }
+        }
+        return builder.toString();
+    }
+
+    public static <T> void setInClauseParams(PreparedStatement statement, List<T> list, Integer startAt) throws SQLException {
+        for (T obj :
+                list) {
+            statement.setObject(startAt, obj);
+            startAt = startAt + 1;
+        }
     }
 }
