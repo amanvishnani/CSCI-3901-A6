@@ -21,14 +21,10 @@ public class DbMigrationUtils {
 
     private static final String RENAME_PAYMENTS_TEMP_TO_PAYMENTS_TABLE = "rename table payments_temp to payments;";
 
-    private static final String CREATE_ORDER_PAYMENTS = "create table order_payment (\n" +
-            "\tid int auto_increment primary key,\n" +
-            "    orderNumber int,\n" +
-            "    payment_id int,\n" +
-            "    CONSTRAINT PAY_ORD foreign key (payment_id)\n" +
-            "    REFERENCES payments (payment_id),\n" +
-            "    UNIQUE(orderNumber, payment_id)" +
-            ");";
+    private static final String ADD_PAYMENT_ID_TO_ORDERS = "" +
+            "alter table orders \n" +
+            "add payment_id INT,\n" +
+            "add foreign key (payment_id) references payments(payment_id);";
 
     static public void addPaymentStatusColumn(Connection database) {
         String ADD_PAYMENT_STATUS = "" +
@@ -56,13 +52,14 @@ public class DbMigrationUtils {
         }
     }
 
-    static public void createOrderPaymentsTable(Connection database) {
+    static public void addPaymentIdInOrdersTable(Connection database) {
         try {
             Statement stmt = database.createStatement();
-            stmt.executeUpdate(CREATE_ORDER_PAYMENTS);
-            System.out.println("[SUCCESS] Create ORDER_PAYMENTS table");
+            stmt.executeUpdate(ADD_PAYMENT_ID_TO_ORDERS);
+            System.out.println("[SUCCESS] Add PaymentsID to Orders table");
         } catch (Exception ignored) {
-            System.out.println("[FAILED] Create ORDER_PAYMENTS table");
+            ignored.printStackTrace();
+            System.out.println("[FAILED] Add PaymentsID to Orders table");
         }
     }
 

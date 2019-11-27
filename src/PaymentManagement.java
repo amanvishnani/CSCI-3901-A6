@@ -1,5 +1,5 @@
 import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
@@ -8,7 +8,7 @@ public class PaymentManagement {
     void reconcilePayments(Connection database) {
         DbMigrationUtils.addPaymentStatusColumn(database);
         DbMigrationUtils.createSurrogateKeyInPayments(database);
-        DbMigrationUtils.createOrderPaymentsTable(database);
+        DbMigrationUtils.addPaymentIdInOrdersTable(database);
     }
 
     boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
@@ -22,9 +22,7 @@ public class PaymentManagement {
         try {
             database.setAutoCommit(false);
             OrderPayment.linkPayment(database, orders, cheque_number);
-            System.out.println("[SUCCESS] DB UPDATE. ORDER LINKED WITH PAYMENTS.");
-            OrderPayment.updateStatus(database, orders, "PAID");
-            System.out.println("[SUCCESS] DB UPDATE. ORDER PAYMENT_STATUS=\"PAID\".");
+            System.out.println("[SUCCESS] DB UPDATE. ORDER LINKED WITH PAYMENTS and PAYMENT_STATUS=\"PAID\"..");
             QueryUtils.commitTransaction(database);
         } catch (SQLException e) {
             System.out.println("[FAILED] DB UPDATE. ROLLBACK.");
@@ -40,7 +38,20 @@ public class PaymentManagement {
     }
 
     ArrayList<Integer> unpaidOrders(Connection database) {
-        return null;
+        String SQL = "" +
+                "select distinct orderNumber " +
+                "from orders " +
+                "where payment_status!='PAID' and status not in ('Cancelled', 'Disputed')";
+        ArrayList<Integer> list = new ArrayList<>();
+        try {
+            ResultSet set = database.prepareStatement(SQL).executeQuery();
+            while (set.next()) {
+                list.add(set.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
     ArrayList<String> unknownPayments(Connection database) {
