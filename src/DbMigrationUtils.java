@@ -58,7 +58,6 @@ public class DbMigrationUtils {
             stmt.executeUpdate(ADD_PAYMENT_ID_TO_ORDERS);
             System.out.println("[SUCCESS] Add PaymentsID to Orders table");
         } catch (Exception ignored) {
-            ignored.printStackTrace();
             System.out.println("[FAILED] Add PaymentsID to Orders table");
         }
     }

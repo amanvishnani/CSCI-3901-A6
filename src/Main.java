@@ -11,5 +11,6 @@ public class Main {
         Integer[] orders = {10298};
         management.payOrder(database, 6066.78f, "HQ336336", new ArrayList<>(Arrays.asList(orders)));
         System.out.println(management.unpaidOrders(database));
+        System.out.println(management.unknownPayments(database));
     }
 }
