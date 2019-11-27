@@ -1,11 +1,12 @@
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class PaymentManagement {
 
-    void reconcilePayments(Connection database) {
+    void migrateDb(Connection database) {
         DbMigrationUtils.addPaymentStatusColumn(database);
         DbMigrationUtils.createSurrogateKeyInPayments(database);
         DbMigrationUtils.addPaymentIdInOrdersTable(database);
@@ -77,5 +78,33 @@ public class PaymentManagement {
             e.printStackTrace();
         }
         return list;
+    }
+
+    public Map<Integer, ArrayList<Integer>> getUnpaidOrdersWithCustomerId(Connection database) {
+        String SQL = "" +
+                "SELECT customerNumber, \n" +
+                "       Group_concat(orderNumber) AS orderNumbers \n" +
+                "FROM   orders \n" +
+                "WHERE  payment_status = \"unavailable\" \n" +
+                "       AND status NOT IN ( 'Cancelled', 'Disputed' ) \n" +
+                "GROUP  BY customerNumber \n" +
+                "ORDER  BY shippedDate; ";
+
+        Map<Integer, ArrayList<Integer>> map = new LinkedHashMap<>();
+        try {
+            ResultSet set = database.prepareStatement(SQL).executeQuery();
+            while (set.next()) {
+                Integer customerId = set.getInt(1);
+                ArrayList<Integer> list = Arrays.stream(set.getString(2)
+                        .split(","))
+                        .map(Integer::parseInt)
+                        .collect(Collectors.toCollection(ArrayList::new));
+                map.put(customerId, list);
+            }
+            return map;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
