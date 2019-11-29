@@ -4,8 +4,19 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * @author Aman Vishnani (aman.vishnani@dal.ca)
+ */
 public class PaymentManagement {
 
+    /**
+     * Method to link order and payments.
+     * @param database the connection to the database.
+     * @param amount the given amount
+     * @param cheque_number the given check number
+     * @param orders the given list of orders
+     * @return true on success.
+     */
     boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
         if (database == null) return  false;
         if(orders.size()==0) {
@@ -33,6 +44,11 @@ public class PaymentManagement {
         return false;
     }
 
+    /**
+     * Method to find all unpaid orders.
+     * @param database the connection to the database.
+     * @return the list of all the orderNumbers which are unpaid.
+     */
     ArrayList<Integer> unpaidOrders(Connection database) {
         if (database == null) {
             return null;
@@ -53,6 +69,11 @@ public class PaymentManagement {
         return list;
     }
 
+    /**
+     * Method to find which payments are not linked to any orders.
+     * @param database the connection to the database.
+     * @return the list of checkNumbers.
+     */
     ArrayList<String> unknownPayments(Connection database) {
         if(database == null) {
             return null;
@@ -74,13 +95,24 @@ public class PaymentManagement {
         return list;
     }
 
+    /**
+     * Method to find and link payments with relevant orders.
+     * @param database the connection to the database.
+     */
     public void reconcilePayments( Connection database ) {
         Map<Integer, ArrayList<Integer>> map = getUnpaidOrdersWithCustomerId(database);
+        if(map == null) return;
         for (Map.Entry<Integer, ArrayList<Integer>> entry: map.entrySet()){
             reconcileForCustomer(database, entry.getKey(), entry.getValue());
         }
     }
 
+    /**
+     * Method to find and link payments with relevant orders for a given customer.
+     * @param database the db connection
+     * @param customerId the customerId
+     * @param orderNumbers the list of all the orderNumber which are unlinked.
+     */
     private void reconcileForCustomer(Connection database, Integer customerId, ArrayList<Integer> orderNumbers) {
         System.out.println("Customer Number: "+customerId);
         int level = 1;
@@ -97,6 +129,7 @@ public class PaymentManagement {
                     if(payment != null) {
                         payOrder(database,payment.amount, payment.check, combination);
                         orderNumbers.removeAll(combination);
+                        processedOrders.addAll(combination);
                     }
                 } catch (SQLException ignored) {
                     return;
@@ -106,6 +139,12 @@ public class PaymentManagement {
         }
     }
 
+    /**
+     * Checks if two list has any common orders.
+     * @param combination the list 1
+     * @param processedOrders the list 2
+     * @return true if they have any common orders.
+     */
     private boolean hasCommonOrder(ArrayList<Integer> combination, ArrayList<Integer> processedOrders) {
         for (Integer order:
              processedOrders) {
@@ -116,6 +155,13 @@ public class PaymentManagement {
         return false;
     }
 
+    /**
+     * Methods to get n combinations from m possible orderNumbers each combination of k length.
+     * where n the total number of orders, m is n-k
+     * @param orderNumbers the list of orderNumbers.
+     * @param level the k for combinations
+     * @return the list of combinations each of length $level.
+     */
     private ArrayList<ArrayList<Integer>> getCombinations(ArrayList<Integer> orderNumbers, int level) {
         ArrayList<ArrayList<Integer>> combinations = new ArrayList<>();
         if(level == orderNumbers.size()) {
@@ -134,7 +180,12 @@ public class PaymentManagement {
         return combinations;
     }
 
-    public Map<Integer, ArrayList<Integer>> getUnpaidOrdersWithCustomerId(Connection database) {
+    /**
+     * Method to get the a map where key is customerNumber and value is the array list of unpaid orders.
+     * @param database the db connection
+     * @return the map
+     */
+    private Map<Integer, ArrayList<Integer>> getUnpaidOrdersWithCustomerId(Connection database) {
         String SQL = "" +
                 "SELECT customerNumber, \n" +
                 "       Group_concat(orderNumber) AS orderNumbers \n" +
@@ -157,7 +208,7 @@ public class PaymentManagement {
             }
             return map;
         } catch (SQLException e) {
-            e.printStackTrace();
+            e.getMessage();
             return null;
         }
     }

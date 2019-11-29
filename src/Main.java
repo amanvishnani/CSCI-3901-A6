@@ -8,5 +8,7 @@ public class Main {
         Connection database = ConnectionManager.getConnection();
         PaymentManagement management = new PaymentManagement();
         management.reconcilePayments(database);
+        System.out.println(management.unknownPayments(database));
+        System.out.println(management.unpaidOrders(database));
     }
 }
