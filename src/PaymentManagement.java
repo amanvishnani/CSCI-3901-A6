@@ -6,12 +6,6 @@ import java.util.stream.Collectors;
 
 public class PaymentManagement {
 
-    void migrateDb(Connection database) {
-        DbMigrationUtils.addPaymentStatusColumn(database);
-        DbMigrationUtils.createSurrogateKeyInPayments(database);
-        DbMigrationUtils.addPaymentIdInOrdersTable(database);
-    }
-
     boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
         if (database == null) return  false;
         if(orders.size()==0) {
@@ -78,6 +72,66 @@ public class PaymentManagement {
             e.printStackTrace();
         }
         return list;
+    }
+
+    public void reconcilePayments( Connection database ) {
+        Map<Integer, ArrayList<Integer>> map = getUnpaidOrdersWithCustomerId(database);
+        for (Map.Entry<Integer, ArrayList<Integer>> entry: map.entrySet()){
+            reconcileForCustomer(database, entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void reconcileForCustomer(Connection database, Integer customerId, ArrayList<Integer> orderNumbers) {
+        System.out.println("Customer Number: "+customerId);
+        int level = 1;
+        ArrayList<Integer> processedOrders = new ArrayList<>();
+        while(level <= orderNumbers.size() ) {
+            ArrayList<ArrayList<Integer>> combinations = getCombinations(orderNumbers, level);
+            for (ArrayList<Integer> combination :
+                    combinations) {
+                if(hasCommonOrder(combination, processedOrders)) {
+                    continue;
+                }
+                try {
+                    Payment payment = OrderPayment.getCheckByCustomerIdAndOrders(database, customerId, combination);
+                    if(payment != null) {
+                        payOrder(database,payment.amount, payment.check, combination);
+                        orderNumbers.removeAll(combination);
+                    }
+                } catch (SQLException ignored) {
+                    return;
+                }
+            }
+            level++;
+        }
+    }
+
+    private boolean hasCommonOrder(ArrayList<Integer> combination, ArrayList<Integer> processedOrders) {
+        for (Integer order:
+             processedOrders) {
+            if(combination.contains(order)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ArrayList<ArrayList<Integer>> getCombinations(ArrayList<Integer> orderNumbers, int level) {
+        ArrayList<ArrayList<Integer>> combinations = new ArrayList<>();
+        if(level == orderNumbers.size()) {
+            combinations.add(orderNumbers);
+            return combinations;
+        } else if (orderNumbers.size() < level) {
+            return combinations;
+        }
+        for (int i=0; i<=orderNumbers.size()-level; i++) {
+            ArrayList<Integer> combination =  new ArrayList<>();
+            for (int j = 0; j < level; j++) {
+                combination.add(orderNumbers.get(i+j));
+            }
+            combinations.add(combination);
+        }
+        return combinations;
     }
 
     public Map<Integer, ArrayList<Integer>> getUnpaidOrdersWithCustomerId(Connection database) {

@@ -1,5 +1,6 @@
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
@@ -32,5 +33,42 @@ public class OrderPayment {
             return -1;
         }
         return paymentId;
+    }
+
+    static Payment getCheckByCustomerIdAndOrders(Connection database, Integer customerId, ArrayList<Integer> orders) throws SQLException {
+        Integer paymentId = null;
+        String SQL = "" +
+                "SELECT checkNumber, amount \n" +
+                "from payments \n" +
+                "where customerNumber=? and " +
+                "payment_id not in (select distinct payment_id from orders where payment_id is not null) and " +
+                "amount = ( " +
+                "   select sum(od.quantityOrdered*od.priceEach) " +
+                "   from orders as o " +
+                "   natural join orderDetails as od " +
+                "   where o.orderNumber in (%s) " +
+                "   and o.payment_status != 'PAID'" +
+                ")";
+
+        String inClause = QueryUtils.getInClause(orders.size());
+        SQL = String.format(SQL, inClause);
+        PreparedStatement statement = database.prepareStatement(SQL);
+        statement.setInt(1, customerId);
+        QueryUtils.setInClauseParams(statement, orders, 2);
+        ResultSet set = statement.executeQuery();
+        if(set.next()) {
+            return new Payment(set.getString(1), set.getFloat(2));
+        }
+        return null;
+    }
+}
+
+class Payment {
+    public String check;
+    public Float amount;
+
+    public Payment(String check, Float amount) {
+        this.check = check;
+        this.amount = amount;
     }
 }

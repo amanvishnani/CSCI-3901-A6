@@ -17,8 +17,7 @@ public class ValidationUtils {
             "select sum(od.quantityOrdered * od.priceEach)\n" +
             "from orders as o\n" +
             "natural join orderdetails as od\n" +
-            "where o.status not in ('Cancelled', 'Disputed')\n" +
-            "and o.orderNumber in (%s)\n";
+            "where o.orderNumber in (%s)\n";
     static final String SQL_GET_CHEQUE_AMOUNT = "" +
             "select amount from payments\n" +
             "where checkNumber = ?;";
@@ -105,7 +104,7 @@ public class ValidationUtils {
         } else if (val.floatValue() == amount) {
             return true;
         }else {
-            System.out.println("Amount and Order values don't match.");
+            System.out.printf("Amount and Order values don't match for Order Ids: %s, Amount: %s \n", orders, amount);
             return false;
         }
     }
