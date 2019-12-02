@@ -76,7 +76,7 @@ public class ValidationUtils {
      * @return true if the input is valid.
      * @throws SQLException
      */
-    private static boolean validateSameCustomer(Connection database, String cheque_number, ArrayList<Integer> orders) throws SQLException {
+    public static boolean validateSameCustomer(Connection database, String cheque_number, ArrayList<Integer> orders) throws SQLException {
         String inClause = QueryUtils.getInClause(orders.size());
         String SQL = String.format(SQL_CHECK_CUSTOMER_VALIDATION, inClause);
         PreparedStatement statement = database.prepareStatement(SQL);
@@ -88,6 +88,15 @@ public class ValidationUtils {
             return false;
         }
         return true;
+    }
+
+    public static boolean validateSameCustomer(Connection database, ArrayList<Integer> orders) throws SQLException {
+        ArrayList<Integer> customerIds = OrderPayment.getCustomerIdsForOrders(database, orders);
+        boolean validation = customerIds.size()==1;
+        if(!validation) {
+            System.out.println("Assertion Error: Orders belong to multiple customers.");
+        }
+        return validation;
     }
 
     /**

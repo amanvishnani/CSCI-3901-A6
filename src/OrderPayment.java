@@ -2,7 +2,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * Utility class for Orders and Payments modifications.
@@ -21,6 +23,10 @@ public class OrderPayment {
      */
     static String SQL_UPDATE_ORDERS = "" +
             "update orders set payment_id = ?, payment_status = ? where orderNumber in (%s)";
+
+    static final String SQL_DISTINCT_CUSTOMERS_FOR_ORDERS = "" +
+            "select distinct customerNumber from orders\n" +
+            "where orderNumber in (%s)\n";
 
     /**
      * Method to link orders and payments with order number and checkNumber.
@@ -96,6 +102,34 @@ public class OrderPayment {
             return new Payment(set.getString(1), set.getFloat(2));
         }
         return null;
+    }
+
+    public static ArrayList<Integer> getCustomerIdsForOrders(Connection database, ArrayList<Integer> orders) throws SQLException {
+        String inClause = QueryUtils.getInClause(orders.size());
+        String SQL = String.format(SQL_DISTINCT_CUSTOMERS_FOR_ORDERS, inClause);
+        PreparedStatement statement = database.prepareStatement(SQL);
+        QueryUtils.setInClauseParams(statement, orders, 1);
+        ResultSet set = statement.executeQuery();
+        ArrayList<Integer> customerIds = new ArrayList<>();
+        while (set.next()) {
+            Integer customerId = set.getInt(1);
+            customerIds.add(customerId);
+        }
+        return customerIds;
+    }
+
+    public static void createCheck(Connection database, String cheque_number, float amount, Integer customerId) throws SQLException {
+        String SQL = "insert into payments (customerNumber, checkNumber, paymentDate, amount) values " +
+                "(?,?,?,?)";
+        System.out.println(String.format("[CREATE] Payment Record with Check Number %s for customerId: %d", cheque_number, customerId));
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        String date = simpleDateFormat.format(new Date());
+        PreparedStatement statement = database.prepareStatement(SQL);
+        statement.setInt(1, customerId);
+        statement.setString(2, cheque_number);
+        statement.setString(3, date);
+        statement.setFloat(4, amount);
+        statement.executeUpdate();
     }
 }
 

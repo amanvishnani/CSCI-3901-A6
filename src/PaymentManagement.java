@@ -1,6 +1,8 @@
+import javax.swing.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -8,6 +10,57 @@ import java.util.stream.Collectors;
  * @author Aman Vishnani (aman.vishnani@dal.ca)
  */
 public class PaymentManagement {
+
+
+    /**
+     * Creates a payment record and links them with orders.
+     * Validates if Order Value is equal to check amount.
+     * Validates if the check number already exists.
+     * @param database the connection to the database.
+     * @param amount the check amount
+     * @param cheque_number the check number
+     * @param orders the list of order numbers.
+     * @return true if payment was created and linked.
+     */
+    boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
+        if (database == null) return  false;
+        if(orders.size()==0) {
+            return false;
+        }
+        Savepoint checkPoint = null;
+        try {
+            checkPoint = database.setSavepoint();
+            boolean v1 = ValidationUtils.validateOrderAmount(database, amount, orders);
+            boolean v2 = ValidationUtils.validateChequeNumber(database, cheque_number);
+            boolean v3 = ValidationUtils.validateSameCustomer(database, orders);
+
+            /*
+            Check if amount does not equals orders value or check already exist or
+            orders dont have single distinct customers in db. return false in such case.
+             */
+            if(!v1 || v2 || !v3) {
+                return false;
+            }
+
+            database.setAutoCommit(false);
+
+            Integer cstId = OrderPayment.getCustomerIdsForOrders(database, orders).get(0);
+            OrderPayment.createCheck(database, cheque_number, amount, cstId);
+            linkPayment(database, amount, cheque_number, orders);
+            QueryUtils.commitTransaction(database);
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            if(checkPoint != null) {
+                try {
+                    QueryUtils.rollBackTransaction(database, checkPoint);
+                } catch (SQLException ex) {
+                    return false;
+                }
+            }
+            return false;
+        }
+    }
 
     /**
      * Method to link order and payments.
@@ -17,7 +70,7 @@ public class PaymentManagement {
      * @param orders the given list of orders
      * @return true on success.
      */
-    boolean payOrder(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) {
+    private boolean linkPayment(Connection database, float amount, String cheque_number, ArrayList<Integer> orders) throws SQLException {
         if (database == null) return  false;
         if(orders.size()==0) {
             return false;
@@ -26,21 +79,9 @@ public class PaymentManagement {
         if (!valid) {
             return false;
         }
-        try {
-            database.setAutoCommit(false);
-            OrderPayment.linkPayment(database, orders, cheque_number);
-            System.out.println("[SUCCESS] DB UPDATE. ORDER LINKED WITH PAYMENTS and PAYMENT_STATUS=\"PAID\".");
-            QueryUtils.commitTransaction(database);
-        } catch (SQLException e) {
-            System.out.println("[FAILED] DB UPDATE. ROLLBACK.");
-            try {
-                QueryUtils.rollBackTransaction(database);
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-                return false;
-            }
-            return false;
-        }
+        OrderPayment.linkPayment(database, orders, cheque_number);
+        System.out.println("[SUCCESS] DB UPDATE. ORDER LINKED WITH PAYMENTS and PAYMENT_STATUS=\"PAID\".");
+
         return false;
     }
 
@@ -124,14 +165,25 @@ public class PaymentManagement {
                 if(hasCommonOrder(combination, processedOrders)) {
                     continue;
                 }
+                Savepoint savepoint = null;
                 try {
+                    savepoint = database.setSavepoint();
+                    database.setAutoCommit(false);
                     Payment payment = OrderPayment.getCheckByCustomerIdAndOrders(database, customerId, combination);
                     if(payment != null) {
-                        payOrder(database,payment.amount, payment.check, combination);
+                        linkPayment(database,payment.amount, payment.check, combination);
                         orderNumbers.removeAll(combination);
                         processedOrders.addAll(combination);
                     }
+                    QueryUtils.commitTransaction(database);
                 } catch (SQLException ignored) {
+                    try {
+                        if(savepoint != null) {
+                            QueryUtils.rollBackTransaction(database, savepoint);
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
                     return;
                 }
             }

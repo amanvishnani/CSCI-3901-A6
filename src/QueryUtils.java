@@ -13,8 +13,8 @@ public class QueryUtils {
      * @param connection
      * @throws SQLException
      */
-    public static void rollBackTransaction(Connection connection) throws SQLException {
-        connection.rollback();
+    public static void rollBackTransaction(Connection connection, Savepoint savepoint) throws SQLException {
+        connection.rollback(savepoint);
         connection.setAutoCommit(true);
     }
 
