@@ -83,13 +83,14 @@ public class OrderPayment {
                 "   natural join orderDetails as od " +
                 "   where o.orderNumber in (%s) " +
                 "   and o.payment_status != 'PAID'" +
-                ")";
+                ") and paymentDate >= (select min(o.orderDate) from orders as o where o.orderNumber in (%s))";
 
         String inClause = QueryUtils.getInClause(orders.size());
-        SQL = String.format(SQL, inClause);
+        SQL = String.format(SQL, inClause, inClause);
         PreparedStatement statement = database.prepareStatement(SQL);
         statement.setInt(1, customerId);
         QueryUtils.setInClauseParams(statement, orders, 2);
+        QueryUtils.setInClauseParams(statement, orders, 2 + orders.size());
         ResultSet set = statement.executeQuery();
         if(set.next()) {
             return new Payment(set.getString(1), set.getFloat(2));
